@@ -1,10 +1,13 @@
 """
 Lag-1 cross-sectional ridge ensemble; top/bottom-25 book at caps.
 
-ALGO overlay (USE_ALGO_OVERLAY): trades ALGO at ALGO_TRADE_CAP ($45k) when
-|z-score of ALGO pred vs its history| >= ALGO_Z_MIN. Full $100k primary was
-unstable across windows; sized+threshold overlay raised walk-forward
-min(w1,w2) from 566.6 (book-only) to 578.9 on prices.txt (750 days).
+ALGO overlay: dedicated own-AR(1) predictor (not full multivariate ridge).
+Trade ALGO at ALGO_TRADE_CAP when |z| of that predictor vs its history
+>= ALGO_Z_MIN. Walk-forward on prices.txt (750d):
+  book-only min(w1,w2)=566.6
+  ridge overlay $45k z>=0.5 → 576.0
+  own-AR overlay $35k z>=0.0 → 599.8  (chosen)
+Phase-1 multi-horizon / EW / screened lead-lag ensembles did not beat lag-1.
 """
 import numpy as np
 
@@ -19,19 +22,16 @@ LAM_ENSEMBLE = [0.03, 0.1, 0.3]
 MIN_TRAIN = 80
 TOP_K = 25
 
-# Sized ALGO overlay (not full $100k): walk-forward pick vs book-only.
-# Book-only min(w1,w2)=566.6; ALGO $45k @ |z|>=0.5 → min=578.9 (both windows).
 USE_ALGO_OVERLAY = True
-ALGO_TRADE_CAP = 45_000.0    # dollar size when trading ALGO (cap still $100k)
-ALGO_Z_MIN = 0.5             # only trade when |z-score of pred| >= this
-ALGO_MIN_HIST = 40           # prediction history required before trading ALGO
+ALGO_TRADE_CAP = 35_000.0
+ALGO_Z_MIN = 0.0
+ALGO_MIN_HIST = 40
 
 _algo_hist = []
 
 
 def _ridge_multi(X, Y, lams):
     XtX, XtY = X.T @ X, X.T @ Y
-    out = np.zeros(Y.shape[1] if Y.ndim > 1 else 1, dtype=float)
     p = X.shape[1]
     acc = None
     for lam in lams:
@@ -46,6 +46,14 @@ def compute_signal(prcSoFar):
         return None
     W = _ridge_multi(rets[:-1], rets[1:], LAM_ENSEMBLE)
     return rets[-1] @ W
+
+
+def _algo_own_ar(rets):
+    """ALGO next-return AR(1) on its own lags."""
+    x = rets[:-1, ALGO_IDX]
+    y = rets[1:, ALGO_IDX]
+    beta = (x * y).mean() / ((x * x).mean() + 1e-12)
+    return float(rets[-1, ALGO_IDX] * beta)
 
 
 def getMyPosition(prcSoFar):
@@ -67,7 +75,8 @@ def getMyPosition(prcSoFar):
     dollars[oi[order[:TOP_K]]] = -OTHER_CAP
 
     if USE_ALGO_OVERLAY:
-        _algo_hist.append(float(pred[ALGO_IDX]))
+        rets = np.diff(np.log(prcSoFar), axis=1).T
+        _algo_hist.append(_algo_own_ar(rets))
         if len(_algo_hist) >= ALGO_MIN_HIST:
             h = np.array(_algo_hist)
             sd = h.std()

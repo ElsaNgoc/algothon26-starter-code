@@ -4,6 +4,32 @@ Nhật ký thay đổi do AI thực hiện trong repo. Mỗi lần AI sửa code
 
 ---
 
+## 2026-07-23 — Phase1 multi-horizon + Phase2 ALGO own-AR
+
+**Ai làm:** Cursor AI (Composer)
+
+**Mục tiêu dài hạn:** Score ~900 (cần μ≈900+/ngày). Hiện vẫn xa — phase này chỉ cải thiện ổn định.
+
+**Phase 1 (ensemble / multi-horizon) — không thắng lag-1:**
+multi-lag, multi-horizon Y, residual, vol-norm, EW-ridge, screened lead-lag, IC-weighted stack, PCA residual AR, slower rebalance. CS-IC lag-1 ≈ 0.076.
+
+**Phase 2 (predictor ALGO riêng) — thắng:**
+Đổi overlay từ multivariate ridge → **own-AR(1)** trên ALGO; size **$35k**, `z_min=0` (sign của z-score pred vs lịch sử).
+
+**Walk-forward min(w1,w2):**
+
+| Variant | min |
+|---|---:|
+| Book-only | 566.6 |
+| Ridge overlay $45k z≥0.5 | 576.0 |
+| **Own-AR overlay $35k z≥0** | **599.8** |
+
+**Eval official** (`py -3 eval.py`): **Score 589.76** (trước 572.25).
+
+**Kết luận tới 900:** cần edge book mạnh hơn nhiều (IC↑), không phải tune size. Oracle book ~7880$/ngày — đang bắt ~7–8%.
+
+---
+
 ## 2026-07-23 — ALGO overlay $45k (tối ưu walk-forward)
 
 **Ai làm:** Cursor AI (Composer)
