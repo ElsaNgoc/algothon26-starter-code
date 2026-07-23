@@ -4,6 +4,23 @@ Nhật ký thay đổi do AI thực hiện trong repo. Mỗi lần AI sửa code
 
 ---
 
+## 2026-07-23 — Top-10 hunt (chưa đạt; không đổi strategy)
+
+**Ai làm:** Cursor AI (Composer)
+
+**Mục tiêu:** Score ~900 (top 10 leaderboard: #10 ≈ 875, #1 ≈ 1031; Mean PL ≈ 887–1044).
+
+**Gap:** Local hiện Score ≈ 590 / μ ≈ 605. Cần μ ≈ 900+ → roughly **gấp IC** (hiện CS-IC ridge ≈ 0.07; simulation cần IC ≈ 0.12–0.15 cho book-only μ≈900).
+
+**Đã thử (không thắng min walk-forward vs own-AR $35k baseline ~600):**
+CS characteristics, MA/mom, sparse lead-lag, Ledoit-Wolf MR, PLS, ElasticNet, vol-norm ridge, panel features, adaptive IC ensemble, strength sizing, asymmetric long/short, net market bias.
+
+**Giữ nguyên:** [`teamName.py`](teamName.py) lag-1 ridge + ALGO own-AR $35k.
+
+**Kết luận:** Top 10 cần **edge dự báo mạnh hơn**, không còn nằm ở tune size/portfolio rules trên signal hiện tại.
+
+---
+
 ## 2026-07-23 — Phase1 multi-horizon + Phase2 ALGO own-AR
 
 **Ai làm:** Cursor AI (Composer)
