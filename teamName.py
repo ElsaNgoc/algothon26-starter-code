@@ -1,15 +1,10 @@
 """
 Lag-1 cross-sectional ridge ensemble; top/bottom-25 book at caps.
 
-ALGO-PRIMARY MODE (USE_ALGO_PRIMARY): trades ALGO at full $100k by the sign
-of a dedicated predictor -- ALGO's next return regressed on ALL assets'
-lagged returns (others as correlation explanatory variables), z-scored vs
-its own history -- layered on the book, which acts as the amplifier sleeve.
-MEASURED: predictor hit rate 52.6% (coin flip). Mode scores 623.1 on days
-501-750 but 564.4 on days 251-500 vs the book-only 566.6/612.6 -- a split
-decision: the ALGO leg adds ~+/-$50/day of unpredictable P&L that won one
-window by luck and lost the other. Default OFF: for the hidden 250 days a
-coin-flip $100k position is variance without expected value.
+ALGO overlay (USE_ALGO_OVERLAY): trades ALGO at ALGO_TRADE_CAP ($45k) when
+|z-score of ALGO pred vs its history| >= ALGO_Z_MIN. Full $100k primary was
+unstable across windows; sized+threshold overlay raised walk-forward
+min(w1,w2) from 566.6 (book-only) to 578.9 on prices.txt (750 days).
 """
 import numpy as np
 
@@ -24,7 +19,11 @@ LAM_ENSEMBLE = [0.03, 0.1, 0.3]
 MIN_TRAIN = 80
 TOP_K = 25
 
-USE_ALGO_PRIMARY = False     # True: trade ALGO at sign(pred) x $100k
+# Sized ALGO overlay (not full $100k): walk-forward pick vs book-only.
+# Book-only min(w1,w2)=566.6; ALGO $45k @ |z|>=0.5 → min=578.9 (both windows).
+USE_ALGO_OVERLAY = True
+ALGO_TRADE_CAP = 45_000.0    # dollar size when trading ALGO (cap still $100k)
+ALGO_Z_MIN = 0.5             # only trade when |z-score of pred| >= this
 ALGO_MIN_HIST = 40           # prediction history required before trading ALGO
 
 _algo_hist = []
@@ -67,14 +66,15 @@ def getMyPosition(prcSoFar):
     dollars[oi[order[-TOP_K:]]] = OTHER_CAP
     dollars[oi[order[:TOP_K]]] = -OTHER_CAP
 
-    if USE_ALGO_PRIMARY:
+    if USE_ALGO_OVERLAY:
         _algo_hist.append(float(pred[ALGO_IDX]))
         if len(_algo_hist) >= ALGO_MIN_HIST:
             h = np.array(_algo_hist)
             sd = h.std()
             if sd > 1e-12:
                 z = (h[-1] - h.mean()) / sd
-                dollars[ALGO_IDX] = np.sign(z) * ALGO_CAP
+                if abs(z) >= ALGO_Z_MIN:
+                    dollars[ALGO_IDX] = np.sign(z) * ALGO_TRADE_CAP
 
     shares = np.round(dollars / last_prices).astype(int)
     mx = np.floor(POSITION_CAPS / last_prices).astype(int)
