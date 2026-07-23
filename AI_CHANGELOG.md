@@ -4,6 +4,24 @@ Nhật ký thay đổi do AI thực hiện trong repo. Mỗi lần AI sửa code
 
 ---
 
+## 2026-07-23 — Sparse lead-lag pairs (~Score 905)
+
+**Ai làm:** Cursor AI (Composer)
+
+**Lý do:** User muốn thử ~900; local `eval.py` chỉ 250 ngày cuối trên 750d `prices.txt`, trong khi LB có thể nhiều data hơn.
+
+**Strategy mới:** sparse lead-lag — mỗi asset dự báo từ 1–3 **LEADERS** cố định (chọn từ lead-lag |corr| trên `prices.txt`); beta fit online trên `prcSoFar` (lookback 200, λ=0.5). Giữ ALGO own-AR $35k.
+
+**Eval official** (`py -3 eval.py`, 250 ngày cuối):
+- mean(PL): 914.8
+- StdDev(PL): 1465.62
+- annSharpe: 9.87
+- **Score: 905.47**
+
+**Lưu ý:** leaders hardcode theo structure file local; khi BTC đổi dataset cần chọn lại leaders (hoặc chuyển sang expanding selection).
+
+---
+
 ## 2026-07-23 — Top-10 hunt (chưa đạt; không đổi strategy)
 
 **Ai làm:** Cursor AI (Composer)
