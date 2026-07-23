@@ -4,6 +4,30 @@ Nhật ký thay đổi do AI thực hiện trong repo. Mỗi lần AI sửa code
 
 ---
 
+## 2026-07-23 — ALGO overlay $45k (tối ưu walk-forward)
+
+**Ai làm:** Cursor AI (Composer)
+
+**Mục đích:** Tăng Score ổn định trên **cả hai** cửa sổ 250 ngày (251–500 và 501–750), không chỉ 250 ngày cuối.
+
+**Đã thử (thua baseline hoặc kém ổn định):** tune `TOP_K`/`λ`/`MIN_TRAIN`, soft sizing, deadband, position blend, signal EMA, rolling window, residual ridge, vol targeting, ALGO full $100k.
+
+**Chọn:** giữ book ridge top/bottom-25; overlay ALGO **$45k** khi `|z| ≥ 0.5` (pred z-score vs lịch sử).
+
+**Walk-forward (`prices.txt` 750 ngày):**
+
+| Variant | w1 (251–500) | w2 (501–750) | min |
+|---|---:|---:|---:|
+| Book-only | 612.6 | 566.6 | 566.6 |
+| **ALGO $45k @ z≥0.5** | **581.1** | **578.9** | **578.9** |
+
+**Eval official** (`py -3 eval.py`, 250 ngày cuối):
+- mean(PL): 588.9 → **Score: 572.25** (trước đó 566.64)
+
+**File:** [`teamName.py`](teamName.py) — `USE_ALGO_OVERLAY=True`, `ALGO_TRADE_CAP=45000`, `ALGO_Z_MIN=0.5`.
+
+---
+
 ## 2026-07-23 — Tích hợp ridge ensemble (~Score 567) vào teamName.py
 
 **Ai làm:** Cursor AI (Composer)
