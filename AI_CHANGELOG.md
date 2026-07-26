@@ -4,6 +4,28 @@ Nhật ký thay đổi do AI thực hiện trong repo. Mỗi lần AI sửa code
 
 ---
 
+## 2026-07-26 — Fix LB ~300: bỏ hardcoded LEADERS, về ridge nhân quả
+
+**Ai làm:** Cursor AI (Composer)
+
+**Vấn đề:** Sparse pairs với `LEADERS` hardcode overfit `prices.txt` public → local ~900 nhưng LB hidden ~300. File mới 1000 ngày: cửa sổ 751–1000 Score pairs cũ ≈ **264**.
+
+**Walk-forward 3 cửa sổ (251–500 / 501–750 / 751–1000):**
+
+| Strategy | min Score |
+|---|---:|
+| hard_old pairs | 264 |
+| causal pairs (expanding) | ~100–220 |
+| **ridge + own-AR $45k** | **524** |
+
+**Chọn:** ridge lag-1 ensemble + ALGO own-AR $45k (không LEADERS).
+
+**Eval local** (`eval.py`, 250 ngày cuối của 1000d): Score ≈ **524** (thấp hơn 900 giả tạo, nhưng kỳ vọng LB ổn định hơn ~300).
+
+**Files:** [`teamName.py`](teamName.py), [`USUK.py`](USUK.py)
+
+---
+
 ## 2026-07-23 — Sparse lead-lag pairs (~Score 905)
 
 **Ai làm:** Cursor AI (Composer)
