@@ -4,6 +4,27 @@ Nhật ký thay đổi do AI thực hiện trong repo. Mỗi lần AI sửa code
 
 ---
 
+## 2026-07-26 — Hunt toward 800 (chưa đạt); ship ~570 causal
+
+**Ai làm:** Cursor AI (Composer)
+
+**Mục tiêu:** Score 800 nhân quả. **Chưa đạt** trên 3 cửa sổ OOS.
+
+**Kết quả hunt:**
+| Variant | Ghi chú | Score / min |
+|---|---|---:|
+| Ridge + ALGO $45k | baseline trước hunt | min WF ≈ 524; eval ≈ 544 |
+| Ridge + ALGO $60–70k, z≥0.5 | không LEADERS | min WF ≈ **558** |
+| Freeze leaders 700d + pw0.25 + ALGO $70k z≥0.5 | leaders không đụng last-250 | **eval ≈ 569** |
+
+**Ship:** ridge + light pairs (LEADERS freeze từ 700 ngày đầu) + ALGO $70k @ \|z\|≥0.5.
+
+**Kỳ vọng LB:** tốt hơn ~300 (pairs overfit cũ) và hơn ~540 (ridge thuần); **không** kỳ vọng 800.
+
+**Files:** `teamName.py`, `USUK.py`
+
+---
+
 ## 2026-07-26 — Fix LB ~300: bỏ hardcoded LEADERS, về ridge nhân quả
 
 **Ai làm:** Cursor AI (Composer)
