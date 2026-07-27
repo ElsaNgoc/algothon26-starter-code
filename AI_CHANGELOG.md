@@ -4,6 +4,142 @@ Nhật ký thay đổi do AI thực hiện trong repo. Mỗi lần AI sửa code
 
 ---
 
+## 2026-07-27 — Execution tune: STATIC_BLEND_W 0.35→0.40 (strength sizing thua)
+
+**Ai làm:** Cursor AI (Composer)
+
+**Phase 1 — blend grid (flat $10k):** winner `static_w=0.40`, `rank_w=0.15`
+- WF min **577.5** (từ 574.2 @ 0.35)
+- `eval.py` Score ≈ **589.9** (từ ~581.7)
+
+**Phase 2 — strength sizing** (`|z(pred)|` trong top-25, cap $10k): kém hơn blend
+- best floor=0.5: min WF **555.3**, eval **568.8** → không ship
+
+**Ship:** `STATIC_BLEND_W=0.40`, giữ `RANK_BLEND_W=0.15`, flat sizing, ALGO không đổi.
+
+**Files:** `teamName.py`, `USUK.py`
+
+---
+
+## 2026-07-27 — Ship meta-ensemble dyn+static (Score ~582)
+
+**Ai làm:** Cursor AI (Composer)
+
+**Ý tưởng:** meta-ensemble giữa 2 signal độc lập:
+- `pred = z(dyn_ridge) + 0.35 * z(static_ridge)`
+- thêm `rank_blend = 0.15` để giảm churn xếp hạng cross-sectional.
+
+**Kết quả (WF 3 cửa sổ):**
+- Baseline dyn: `[580.4, 562.8, 593.5]`, min **562.8**
+- Meta ship: `[592.0, 574.2, 604.0]`, min **574.2** (↑ +11.4)
+
+**Eval local (`eval.py`):**
+- meanPL ≈ **599.5**
+- Score ≈ **581.7** (từ ~572.9)
+
+**WF gate 6-fold:** mean/median tốt hơn nhẹ, nhưng fold 876-1000 vẫn yếu nên `SHIP_READY=False` theo cổng bảo thủ.
+
+**Files:** `teamName.py`, `USUK.py`
+
+---
+
+## 2026-07-27 — Hunt hướng B (momentum blend + turnover): không ship
+
+**Ai làm:** Cursor AI (Composer)
+
+**Ý tưởng:** blend `dyn ridge` với momentum 5d/20d (`m5`, `m20`) và deadband turnover.
+
+**Kết quả:** không config nào thắng baseline.
+- Baseline: `m5=0, m20=0` → WF `[580.4, 562.8, 593.5]`, min **562.8**, eval **572.9**
+- Best non-baseline: `m5=0.1, m20=0` → min **517.8**, eval **543.9**
+- Các blend còn lại min ~408–509, đều kém robust.
+
+**Quyết định:** giữ nguyên `teamName.py`/`USUK.py` (dyn ridge + ALGO overlay).
+
+---
+
+## 2026-07-27 — Thêm cổng ship chống overfit (WF 6-fold)
+
+**Ai làm:** Cursor AI (Composer)
+
+**Mục tiêu:** xử lý tình trạng data public “kẹt trần” bằng quy trình validate robust trước khi submit.
+
+**Đã thêm:** script [`wf_gate.py`](wf_gate.py)
+- 6 fold thời gian (mỗi fold 125 ngày): 251-375, 376-500, 501-625, 626-750, 751-875, 876-1000.
+- Báo cáo theo fold: `score`, `mu`, `annSharpe`, `hiVolMu`, `loVolMu`.
+- Aggregate chống overfit: `robustObj = 0.7*minScore + 0.3*meanScore`.
+- Cờ quyết định `SHIP_READY=True/False` với ngưỡng bảo thủ.
+
+**Run trên strategy hiện tại (`teamName.py`):**
+- meanScore ≈ 574.6, median ≈ 567.3, **min ≈ 118.5**, robustObj ≈ 255.4
+- `SHIP_READY=False` (fold 876-1000 yếu, cho thấy drift/regime risk)
+
+**Files:** `wf_gate.py`
+
+---
+
+## 2026-07-27 — Hunt hướng A (cluster lead-lag rolling): không ship
+
+**Ai làm:** Cursor AI (Composer)
+
+**Ý tưởng:** k-means cluster trên corr matrix (rolling 300d, update 30d) → 1 leader/cluster/asset → blend `z(ridge)+pw×z(pairs)`.
+
+**Kết quả vs dyn baseline (min WF ≈ 563, eval ≈ 573):**
+| Config | min WF | eval |
+|---|---:|---:|
+| **dyn (giữ)** | **562.8** | **572.9** |
+| k6 pw0.2 m0.12 | 544.1 | 523.3 |
+| k6 upd45 | 547.2 | 526.4 |
+| k8 pw0.2 (eval cao nhất cluster) | 533.7 | 574.8 |
+
+Cluster pairs làm **min WF tụt 15–60** → không ship. Giữ dyn ridge + ALGO.
+
+---
+
+## 2026-07-27 — IC book hunt: không ship (ceiling ~0.07)
+
+**Ai làm:** Cursor AI (Composer)
+
+**Mục tiêu:** nâng CS-IC book (không đổi ALGO `$60k @ |z|≥0.5`). Gate: IC_OOS ≥ baseline+0.01 (≈0.0855) **và** min WF ≥ 563 **và** eval không tụt >15.
+
+**Baseline dyn:** Pearson IC ≈ 0.072 (OOS 751–1000 ≈ 0.076); min WF ≈ 563; cold eval ≈ 573.
+
+**Đã thử (không PASS gate):**
+| Lớp | Best IC_OOS | min WF | Ghi chú |
+|---|---:|---:|---|
+| CS-demean / resid ridge | ≤0.074 | ~450 | IC không lên, Score tụt |
+| Rank-Y / Rank-XY ridge | 0.076 / 0.058 | 530 / 328 | rank-Y last-window tốt nhưng min WF kém |
+| PCA multilag (5–8 PC) | ~0.041 | ≤158 | overfit nặng |
+| dyn+demean / dyn+resid / dyn+pca blends | ≤0.076 | ≤533 | gần baseline IC, WF kém hơn |
+| IC-weighted blend2/3 | **0.079** | 553 | gần nhất IC nhưng không đủ + WF/eval fail |
+| Causal 1-leader rolling | ≤0.074 | ≤540 | yếu |
+
+**Quyết định:** giữ dyn ridge + ALGO. Ceiling IC công khai ≈ **0.07–0.08**; chưa có candidate nhân quả đạt 0.09+ cùng lúc giữ Score.
+
+**Files:** không đổi `teamName.py` / `USUK.py`
+
+---
+
+## 2026-07-27 — Signal hunt: không ship freeze-700 (look-ahead)
+
+**Ai làm:** Cursor AI (Composer)
+
+**Mục tiêu:** cải thiện predictive signal của book (không chỉ sizing).
+
+**Kết quả:**
+| Variant | min(3 WF) | last-250 (751–1000) | Ghi chú |
+|---|---:|---:|---|
+| **dyn ridge + ALGO $60k** | **≈563** | **≈594** | giữ lại |
+| static ridge | ≈558 | ≈558 | |
+| freeze-700 + pw0.25 | ≈584* | ≈584 | *early windows leak (leaders dùng ngày sau cửa sổ) |
+| EW / multilag / volnorm / CS-demean / causal pairs | kém hơn | kém hơn | |
+
+**Quyết định:** không ship hardcoded LEADERS freeze-700 (giống rủi ro LB ~300 trước đây). Giữ `REGIME_DYNAMIC` ridge + ALGO overlay. `eval.py` local ≈ **573** band.
+
+**Files:** `teamName.py`, `USUK.py`
+
+---
+
 ## 2026-07-26 — Hunt toward 800 (chưa đạt); ship ~570 causal
 
 **Ai làm:** Cursor AI (Composer)
