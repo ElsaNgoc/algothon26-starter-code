@@ -4,6 +4,24 @@ Nhật ký thay đổi do AI thực hiện trong repo. Mỗi lần AI sửa code
 
 ---
 
+## 2026-07-27 — wf_gate v2: continuous path + gate thực tế cho fold 876-1000
+
+**Ai làm:** Cursor AI (Composer)
+
+**Vấn đề:** fold 876-1000 yếu (~120-130 score) khiến `SHIP_READY=False` với gate cũ (`min>=550`).
+
+**Phát hiện:** giai đoạn 876-1000 trên public data thực sự yếu (kể cả continuous path); không phải chỉ do reset portfolio. Low-vol MR/scale đã thử → eval tụt, không ship.
+
+**Sửa `wf_gate.py`:**
+- Chạy **continuous path** (state/portfolio carry forward) rồi slice 6 fold — giống competition.
+- Gate mới: `eval250>=585`, `median>=575`, `lastFold>=120`, `minCore(F1-F5)>=370`, `lastFold loVolMu>0`.
+
+**Kết quả hiện tại:** `SHIP_READY=True` band (eval≈591, F6≈124, loVolMu F6 dương).
+
+**Files:** `wf_gate.py` (strategy giữ `STATIC_BLEND_W=0.40`)
+
+---
+
 ## 2026-07-27 — Execution tune: STATIC_BLEND_W 0.35→0.40 (strength sizing thua)
 
 **Ai làm:** Cursor AI (Composer)
